@@ -1,55 +1,77 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction, response } from 'express';
 import * as bcrypt from 'bcrypt';
-import User, { IUser } from '../models/user';
+import User from '../models/user';
 import { generateJWTToken, generateHashPassword } from '../common/authUtils';
+import HttpException from '../exceptions/HttpException';
 
 export class AuthController {
-    register = async (req: Request, res: Response) => {
-        let newUser = new User(req.body);
-        const { message } = newUser.validateSync();
-        if (message) {
-            return res.status(400).send(message);
+    public register = async (req: Request, res: Response, next: NextFunction) => {
+        const newUser = new User(req.body);
+        await newUser.validate((err) => {
+            if (err) {
+                next(new HttpException(400, err));
+            }
+        });
+
+        const isUserExists = await this.getUser({ email: newUser.email }, next);
+        if (isUserExists) {
+            next(new HttpException(400, 'User already exists!'));
         }
 
-        const isUserExists = await this.getUser(newUser, res);
-        if (isUserExists) {
-            return res.status(400).send('User already exists!');
-        }
-        
         newUser.password = await generateHashPassword(newUser.password);
 
         await newUser.save((err, user) => {
             if (err) {
                 res.send(err);
             }
-            res.json("User has been registered successfully");
+            res.json('User has been registered successfully');
         });
     }
 
-    login = async (req: Request, res: Response) => {
-        let user = new User(req.body);
-        await user.validate((error) => {
-            if (error) {
-                return res.status(400).send(error.message);
-            }
-        });
+    public login = async (req: Request, res: Response, next: NextFunction) => {
+        const { email, password } = req.body;
+        const user = await this.getUser({ email: email }, next);
 
-        const existingUser = await this.getUser(user, res);
-        const validPassword = await bcrypt.compare(req.body.password, existingUser.password);
+        if (!user) {
+            return next(new HttpException(400, 'Incorrect email or password.'));
+        }
+        const validPassword = await bcrypt.compare(password, user.password);
 
-        if (!validPassword || !existingUser) {
-            return res.status(400).send('Incorrect email or password.');
+        if (!validPassword) {
+            return next(new HttpException(400, 'Incorrect email or password.'));
         }
 
         generateJWTToken(user, res);
     }
 
-    private getUser = async (user: IUser, res: Response) => {
-        return await User.findOne({ email: user.email }, (err, user) => {
+    public getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+        return await User.find({}, (err, users) => {
             if (err) {
-                return res.status(500).send('Internal Server Error!');
+                next(new HttpException(500, err.message));
             }
-            return user;
+            return res.send(users);
+        });
+    }
+
+    public getUserById = async (req: Request, res: Response, next: NextFunction) => {
+        const { userId } = req.params;
+
+        const user = await this.getUser({ _id: userId }, next);
+
+        if (!user) {
+            next(new HttpException(404, 'User not found!'));
+        }
+
+        return res.send(user);
+    }
+
+    private getUser = async (data: any, next: NextFunction) => {
+        return await User.findOne({ ...data }, (err, reponse) => {
+            if (err) {
+                next(new HttpException(500, err.message));
+            }
+
+            return response;
         });
     }
 }

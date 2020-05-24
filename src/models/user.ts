@@ -1,4 +1,10 @@
 import * as mongoose from 'mongoose';
+import { Request, Response, NextFunction } from 'express';
+import Roles from '../enums/role';
+
+export interface IUserAuthInfoRequest extends Request {
+    user: { user: IUser };
+}
 
 export interface IUser extends mongoose.Document {
     firstName: string;
@@ -7,6 +13,7 @@ export interface IUser extends mongoose.Document {
     company: string;
     password: string;
     phone: string;
+    role: Roles;
 }
 
 const UserSchema = new mongoose.Schema<IUser>({
@@ -20,7 +27,7 @@ const UserSchema = new mongoose.Schema<IUser>({
     },
     email: {
         type: String,
-        required: 'Enter an email'
+        required: 'Enter an email',
     },
     company: {
         type: String
@@ -37,6 +44,10 @@ const UserSchema = new mongoose.Schema<IUser>({
     created_date: {
         type: Date,
         default: Date.now
+    },
+    role: {
+        type: Roles,
+        required: true,
     }
 });
 

@@ -1,5 +1,6 @@
 import * as expressJwt from 'express-jwt';
 import { Response, NextFunction } from 'express';
+
 import { IUserAuthInfoRequest } from 'models/user';
 
 const authorize = (roles = []) => {

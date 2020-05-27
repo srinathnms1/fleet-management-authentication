@@ -3,17 +3,19 @@ import * as bodyParser from 'body-parser';
 import * as mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
 import * as cors from 'cors';
+import * as swaggerUi from 'swagger-ui-express';
 
-import { Routes } from './routes/authRoutes';
 import { loggerHandler } from './middleware/loggerMiddleware';
 import errorMiddleware from './middleware/errorMiddleware';
-import HttpException from './exceptions/HttpException';
+import HttpException from './exceptions/httpException';
+import { swaggerDocument } from './swagger/swagger';
+import { UserRoutes } from './routes/userRoutes';
 
 class App {
     public app: express.Application;
-    public routePrv: Routes = new Routes();
+    public router = express.Router();
+    public routePrv: UserRoutes = new UserRoutes();
     public mongoUrl: string = 'mongodb://localhost/Authdb';
-    // public mongoUrl: string = 'mongodb+srv://srinathnms:<password>@cluster0-goawe.mongodb.net/test?retryWrites=true&w=majority';
 
     public constructor() {
         this.app = express();
@@ -21,13 +23,13 @@ class App {
         this.configCors();
         this.routePrv.routes(this.app);
         this.mongoSetup();
+        this.initializeSwagger();
         this.initializeLoggerHandling();
         this.initializeErrorHandling();
     }
 
     private config(): void {
         dotenv.config();
-        // this.app.use(notFoundHandler);
         // support application/json type post data
         this.app.use(bodyParser.json());
         // support application/x-www-form-urlencoded post data
@@ -42,11 +44,16 @@ class App {
 
     private initializeErrorHandling() {
         this.app.use(errorMiddleware);
+
     }
 
     private initializeLoggerHandling() {
         // application level logger middleware
         this.app.use(loggerHandler);
+    }
+
+    private initializeSwagger() {
+        this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
     }
 
     private mongoSetup(): void {

@@ -1,5 +1,6 @@
 import * as mongoose from 'mongoose';
-import { Request, Response, NextFunction } from 'express';
+import { Request } from 'express';
+
 import Roles from '../enums/role';
 
 export interface IUserAuthInfoRequest extends Request {
